@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import db from "../../database/db";
+import reportService from "./report.service";
 
 export const getMonthlyAttendanceReport = async (
   req: Request,
@@ -25,34 +25,19 @@ export const getMonthlyAttendanceReport = async (
       return;
     }
 
-    let query = db("attendance")
-      .join("employees", "attendance.employee_id", "employees.id")
-      .whereRaw("TO_CHAR(attendance.date, 'YYYY-MM') = ?", [month])
-      .select("attendance.employee_id", "employees.name")
-      .count("attendance.id as days_present")
-      .sum({
-        times_late: db.raw(
-          "CASE WHEN attendance.check_in_time > '09:45:00'::time THEN 1 ELSE 0 END"
-        ),
-      })
-      .groupBy("attendance.employee_id", "employees.name")
-      .orderBy("attendance.employee_id", "asc");
-
-    if (employeeId) {
-      query = query.where("attendance.employee_id", employeeId);
-    }
-
-    const report = await query;
+    const report = await reportService.getMonthlyAttendanceReport(
+      month,
+      employeeId
+    );
 
     res.json({
       message: "Monthly attendance report fetched successfully",
       month,
       data: report,
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({
       message: "Failed to generate attendance report",
-      error,
     });
   }
 };
